@@ -31,16 +31,12 @@ public class Utility {
      * @return a TupleDesc with n fields of type Type.INT_TYPE, each named
      * name + n (name1, name2, etc.).
      */
-    public static TupleDesc getTupleDesc(int n, String name) {
-        return new TupleDesc(getTypes(n), getStrings(n, name));
-    }
+    public static TupleDesc getTupleDesc(int n, String name) { return new TupleDesc(getTypes(n), getStrings(n, name)); }
 
     /**
      * @return a TupleDesc with n fields of type Type.INT_TYPE
      */
-    public static TupleDesc getTupleDesc(int n) {
-        return new TupleDesc(getTypes(n));
-    }
+    public static TupleDesc getTupleDesc(int n) { return new TupleDesc(getTypes(n)); }
 
     /**
      * @return a Tuple with a single IntField with value n and with

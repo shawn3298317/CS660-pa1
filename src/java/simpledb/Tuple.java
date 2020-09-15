@@ -1,8 +1,18 @@
 package simpledb;
 
+import sun.security.ssl.Record;
+
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.InputStream;
 import java.io.Serializable;
+import java.nio.charset.Charset;
+import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+
+import static simpledb.Type.STRING_LEN;
 
 /**
  * Tuple maintains information about the contents of a tuple. Tuples have a
@@ -13,6 +23,10 @@ public class Tuple implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    private TupleDesc _tupleDesc;
+    private RecordId _recordId;
+    private ArrayList<Field> _tupleFields = new ArrayList<>();
+
     /**
      * Create a new tuple with the specified schema (type).
      *
@@ -22,6 +36,22 @@ public class Tuple implements Serializable {
      */
     public Tuple(TupleDesc td) {
         // some code goes here
+        // Check validity for TupleDesc
+        _tupleDesc = td;
+
+        if (_tupleDesc.numFields() == 0)
+            return;
+
+        for (int i = 0; i < _tupleDesc.numFields(); i++) {
+            Type t = _tupleDesc.getFieldType(i);
+            Field toAdd;
+            if (t == Type.INT_TYPE) {
+                toAdd = new IntField(-1);
+            } else {
+                toAdd = new StringField("NULL", Type.STRING_LEN);
+            }
+            _tupleFields.add(toAdd);
+        }
     }
 
     /**
@@ -29,7 +59,7 @@ public class Tuple implements Serializable {
      */
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
+        return _tupleDesc;
     }
 
     /**
@@ -38,7 +68,7 @@ public class Tuple implements Serializable {
      */
     public RecordId getRecordId() {
         // some code goes here
-        return null;
+        return _recordId;
     }
 
     /**
@@ -49,6 +79,7 @@ public class Tuple implements Serializable {
      */
     public void setRecordId(RecordId rid) {
         // some code goes here
+        _recordId = rid;
     }
 
     /**
@@ -61,6 +92,8 @@ public class Tuple implements Serializable {
      */
     public void setField(int i, Field f) {
         // some code goes here
+        if (i >= 0 && i < _tupleFields.size())
+            _tupleFields.set(i, f);
     }
 
     /**
@@ -71,7 +104,10 @@ public class Tuple implements Serializable {
      */
     public Field getField(int i) {
         // some code goes here
-        return null;
+        if (i >= 0 && i < _tupleFields.size())
+            return _tupleFields.get(i);
+        else
+            return null;
     }
 
     /**
@@ -84,7 +120,15 @@ public class Tuple implements Serializable {
      */
     public String toString() {
         // some code goes here
-        throw new UnsupportedOperationException("Implement this");
+        String content = "";
+        for (int i = 0; i < _tupleFields.size(); i++) {
+            Field f = _tupleFields.get(i);
+            content += f.toString();
+            if ( i != (_tupleFields.size() - 1))
+                content += "\t";
+        }
+        return content;
+        // throw new UnsupportedOperationException("Implement this");
     }
 
     /**
@@ -94,7 +138,7 @@ public class Tuple implements Serializable {
     public Iterator<Field> fields()
     {
         // some code goes here
-        return null;
+        return _tupleFields.iterator();
     }
 
     /**
@@ -103,5 +147,7 @@ public class Tuple implements Serializable {
     public void resetTupleDesc(TupleDesc td)
     {
         // some code goes here
+        _tupleDesc = td;
+        // TODO: do we need to check the new td with current fields?
     }
 }
