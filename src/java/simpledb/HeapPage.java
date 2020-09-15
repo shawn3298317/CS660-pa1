@@ -3,6 +3,8 @@ package simpledb;
 import java.util.*;
 import java.io.*;
 
+import static java.lang.Math.ceil;
+
 /**
  * Each instance of HeapPage stores data for one page of HeapFiles and 
  * implements the Page interface that is used by BufferPool.
@@ -67,8 +69,8 @@ public class HeapPage implements Page {
     */
     private int getNumTuples() {        
         // some code goes here
-        return 0;
-
+        int tuple_size = this.td.getSize();
+        return (int) Math.floor(((BufferPool.getPageSize()*8) / (tuple_size * 8 + 1)));
     }
 
     /**
@@ -76,9 +78,10 @@ public class HeapPage implements Page {
      * @return the number of bytes in the header of a page in a HeapFile with each tuple occupying tupleSize bytes
      */
     private int getHeaderSize() {        
-        
         // some code goes here
-        return 0;
+        // ceiling(no. tuple slots / 8)
+        double headerSize = Math.ceil(numSlots / 8);
+        return (int) headerSize;
                  
     }
     
@@ -111,8 +114,9 @@ public class HeapPage implements Page {
      * @return the PageId associated with this page.
      */
     public HeapPageId getId() {
-    // some code goes here
-    throw new UnsupportedOperationException("implement this");
+        // some code goes here
+        return pid;
+        // throw new UnsupportedOperationException("implement this");
     }
 
     /**
@@ -265,7 +269,7 @@ public class HeapPage implements Page {
      */
     public void markDirty(boolean dirty, TransactionId tid) {
         // some code goes here
-	// not necessary for lab1
+	    // not necessary for lab1
     }
 
     /**
@@ -273,7 +277,7 @@ public class HeapPage implements Page {
      */
     public TransactionId isDirty() {
         // some code goes here
-	// Not necessary for lab1
+	    // Not necessary for lab1
         return null;      
     }
 
@@ -282,7 +286,13 @@ public class HeapPage implements Page {
      */
     public int getNumEmptySlots() {
         // some code goes here
-        return 0;
+        int nonEmptySlots = 0;
+        for (byte b: header) {
+            int byteInt = b & 0xff;
+            int popCount = (getPopCount(byteInt));
+            nonEmptySlots += popCount;
+        }
+        return (this.numSlots - nonEmptySlots);
     }
 
     /**
@@ -290,7 +300,8 @@ public class HeapPage implements Page {
      */
     public boolean isSlotUsed(int i) {
         // some code goes here
-        return false;
+        byte b = header[i/8];
+        return ((b & (0x1 << (i % 8))) == (0x1 << (i % 8)));
     }
 
     /**
@@ -307,8 +318,56 @@ public class HeapPage implements Page {
      */
     public Iterator<Tuple> iterator() {
         // some code goes here
-        return null;
+        Iterator<Tuple> it = new Iterator<Tuple>() {
+
+            private int cursor = 0;
+
+            @Override
+            public boolean hasNext() {
+                return ((cursor < numSlots) && isSlotUsed(cursor));
+            }
+
+            @Override
+            public Tuple next() {
+                return tuples[cursor++];
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+        };
+        return it;
     }
 
+    /**
+     * Helper function for calculating popcount for 8 bits.
+     * @param s
+     * @return number of 1s
+     */
+    public static int getPopCount(int s) {
+        int m1 = 0x55555555;
+        int m2 = 0x33333333;
+        int m4 = 0x0f0f0f0f;
+        int m8 = 0x00ff00ff;
+        int m16 = 0x0000ffff;
+        int x = (s & m1 ) + ((s >>  1) & m1 ); //put count of each  2 bits into those  2 bits
+        x = (x & m2 ) + ((x >>  2) & m2 ); //put count of each  4 bits into those  4 bits
+        x = (x & m4 ) + ((x >>  4) & m4 ); //put count of each  8 bits into those  8 bits
+        x = (x & m8 ) + ((x >>  8) & m8 ); //put count of each 16 bits into those 16 bits
+        x = (x & m16) + ((x >> 16) & m16); //put count of each 32 bits into those 32 bits
+        return x;
+        /*
+        int it = 0;
+        int popCount = 0;
+        while (it < 8) {
+            if ((s % 2) == 1)
+                popCount += 1;
+            s /= 2;
+            it += 1;
+        }
+        return popCount;
+        */
+    }
 }
 

@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.*;
 
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -20,11 +21,14 @@ public class BufferPool {
     private static final int PAGE_SIZE = 4096;
 
     private static int pageSize = PAGE_SIZE;
-    
+
     /** Default number of pages passed to the constructor. This is used by
     other classes. BufferPool should use the numPages argument to the
     constructor instead. */
     public static final int DEFAULT_PAGES = 50;
+    private int _numPages;
+
+    private HashMap<PageId, Page> _pagePool;
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -33,6 +37,8 @@ public class BufferPool {
      */
     public BufferPool(int numPages) {
         // some code goes here
+        this._numPages = numPages;
+        this._pagePool = new HashMap<>();
     }
     
     public static int getPageSize() {
@@ -64,9 +70,28 @@ public class BufferPool {
      * @param pid the ID of the requested page
      * @param perm the requested permissions on the page
      */
-    public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
+    public Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
+        if (_pagePool.containsKey(pid)) {
+            return _pagePool.get(pid);
+        } else {
+            // retrieve page data
+            int tableId = pid.getTableId();
+            HeapFile hf = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+            try {
+                HeapPage page = (HeapPage) hf.readPage(pid);
+                _pagePool.put(pid, new HeapPage((HeapPageId) pid, page.getPageData()));
+                return page;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            // detect if cache is full, evict if fulled.
+            if (_pagePool.size() >= _numPages) {
+                throw new DbException(String.format("BufferPool reaches maximum limit (%i) pages", _numPages));
+            }
+        }
+
         return null;
     }
 
