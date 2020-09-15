@@ -16,10 +16,10 @@ import java.util.*;
  */
 public class HeapFile implements DbFile {
 
-    // pageid -> offset?
     private File _file;
     private TupleDesc _td;
     private int _numPages;
+    private long _fileSize;
 
     /**
      * Constructs a heap file backed by the specified file.
@@ -33,9 +33,8 @@ public class HeapFile implements DbFile {
         this._file = f;
         this._td = td;
         // precalculate number of pages
-        long pageSize = BufferPool.getPageSize();
-        long fileSize = f.length();
-        this._numPages = (int) Math.ceil(fileSize/pageSize);
+        _fileSize = f.length();
+        this._numPages = (int) Math.ceil(_fileSize/BufferPool.getPageSize());
     }
 
     /**
@@ -78,22 +77,19 @@ public class HeapFile implements DbFile {
         HeapPageId hpid = (HeapPageId) pid;
         int pgNo = hpid.pageNumber();
         int fileOffset = pgNo * BufferPool.getPageSize();
-        FileInputStream fi;
         try {
-            fi = new FileInputStream(_file);
+            RandomAccessFile fi = new RandomAccessFile(_file, "r");
+            byte[] data = new byte[BufferPool.getPageSize()];
+            int readLen = Math.min(BufferPool.getPageSize(), (int)(_fileSize - fileOffset));
+            fi.seek(fileOffset);
+            fi.read(data, 0, readLen);
+            return new HeapPage(hpid, data);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
-            return null;
-        }
-
-        byte[] data = new byte[BufferPool.getPageSize()];
-        try {
-            fi.read(data, fileOffset, BufferPool.getPageSize());
-            return new HeapPage(hpid, data);
         } catch (IOException e) {
             e.printStackTrace();
-            return null;
         }
+        return null;
     }
 
     // see DbFile.java for javadocs
@@ -175,7 +171,7 @@ public class HeapFile implements DbFile {
 
             @Override
             public void rewind() throws DbException, TransactionAbortedException {
-                HeapPageId hpid = new HeapPageId(getId(), 1);
+                HeapPageId hpid = new HeapPageId(getId(), 0);
                 _curPage = (HeapPage) Database.getBufferPool().getPage(tid, hpid, Permissions.READ_ONLY);
                 _cursor = _curPage.iterator();
             }
