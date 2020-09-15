@@ -1,5 +1,8 @@
 package simpledb;
 
+import javafx.util.Pair;
+import jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -18,12 +21,33 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class Catalog {
 
+    private HashMap<Integer, TableInfo> _tableMap;
+    private HashMap<String, Integer> _tableName2IdMap;
+
+    private class TableInfo {
+        private String _tableName;
+        private String _pKeyField;
+        private DbFile _dbFile;
+
+        public TableInfo(DbFile file, String name, String pkeyField) {
+            this._dbFile = file;
+            this._tableName = name;
+            this._pKeyField = pkeyField;
+        }
+
+        public String toString() {
+            return "";
+        }
+    }
+
     /**
      * Constructor.
      * Creates a new, empty catalog.
      */
     public Catalog() {
         // some code goes here
+        this._tableMap = new HashMap<>();
+        this._tableName2IdMap = new HashMap<>();
     }
 
     /**
@@ -37,6 +61,17 @@ public class Catalog {
      */
     public void addTable(DbFile file, String name, String pkeyField) {
         // some code goes here
+        if (name == null)
+            return;
+
+        if (_tableName2IdMap.containsKey(name)) {
+            int oldId = _tableName2IdMap.get(name);
+            _tableMap.remove(oldId);
+            _tableName2IdMap.remove(name);
+        }
+        _tableMap.put(file.getId(), new TableInfo(file, name, pkeyField));
+        _tableName2IdMap.put(name, file.getId());
+
     }
 
     public void addTable(DbFile file, String name) {
@@ -60,7 +95,10 @@ public class Catalog {
      */
     public int getTableId(String name) throws NoSuchElementException {
         // some code goes here
-        return 0;
+        if (_tableName2IdMap.containsKey(name)) {
+            return _tableName2IdMap.get(name);
+        }
+        throw new NoSuchElementException(String.format("Table(%s) not found in catalog.", name));
     }
 
     /**
@@ -71,7 +109,10 @@ public class Catalog {
      */
     public TupleDesc getTupleDesc(int tableid) throws NoSuchElementException {
         // some code goes here
-        return null;
+        if (_tableMap.containsKey(tableid)) {
+            return _tableMap.get(tableid)._dbFile.getTupleDesc();
+        }
+        throw new NoSuchElementException(String.format("TableId(%i) not found in catalog.", tableid));
     }
 
     /**
@@ -82,27 +123,35 @@ public class Catalog {
      */
     public DbFile getDatabaseFile(int tableid) throws NoSuchElementException {
         // some code goes here
-        return null;
+        if (_tableMap.containsKey(tableid)) {
+            return _tableMap.get(tableid)._dbFile;
+        }
+        throw new NoSuchElementException(String.format("TableId(%i) not found in catalog.", tableid));
     }
 
     public String getPrimaryKey(int tableid) {
         // some code goes here
-        return null;
+        if (_tableMap.containsKey(tableid)) {
+            return _tableMap.get(tableid)._pKeyField;
+        }
+        throw new NoSuchElementException(String.format("TableId(%i) not found in catalog.", tableid));
     }
 
     public Iterator<Integer> tableIdIterator() {
         // some code goes here
-        return null;
+        return _tableMap.keySet().iterator();
     }
 
     public String getTableName(int id) {
         // some code goes here
-        return null;
+        return _tableMap.get(id)._tableName;
     }
     
     /** Delete all tables from the catalog */
     public void clear() {
         // some code goes here
+        _tableName2IdMap.clear();
+        _tableMap.clear();
     }
     
     /**
