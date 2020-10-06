@@ -1,7 +1,7 @@
 package simpledb;
 
-import javafx.util.Pair;
-import jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator;
+// import javafx.util.Pair;
+// import jdk.nashorn.internal.runtime.arrays.ArrayLikeIterator;
 
 import java.io.BufferedReader;
 import java.io.File;
