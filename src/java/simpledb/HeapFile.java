@@ -1,7 +1,6 @@
 package simpledb;
 
 import java.io.*;
-import java.nio.Buffer;
 import java.util.*;
 
 /**
@@ -10,7 +9,7 @@ import java.util.*;
  * size, and the file is simply a collection of those pages. HeapFile works
  * closely with HeapPage. The format of HeapPages is described in the HeapPage
  * constructor.
- * 
+ *
  * @see simpledb.HeapPage#HeapPage
  * @author Sam Madden
  */
@@ -23,13 +22,12 @@ public class HeapFile implements DbFile {
 
     /**
      * Constructs a heap file backed by the specified file.
-     * 
+     *
      * @param f
      *            the file that stores the on-disk backing store for this heap
      *            file.
      */
     public HeapFile(File f, TupleDesc td) {
-        // some code goes here
         this._file = f;
         this._td = td;
         // precalculate number of pages
@@ -39,11 +37,10 @@ public class HeapFile implements DbFile {
 
     /**
      * Returns the File backing this HeapFile on disk.
-     * 
+     *
      * @return the File backing this HeapFile on disk.
      */
     public File getFile() {
-        // some code goes here
         return _file;
     }
 
@@ -53,27 +50,24 @@ public class HeapFile implements DbFile {
      * HeapFile has a "unique id," and that you always return the same value for
      * a particular HeapFile. We suggest hashing the absolute file name of the
      * file underlying the heapfile, i.e. f.getAbsoluteFile().hashCode().
-     * 
+     *
      * @return an ID uniquely identifying this HeapFile.
      */
     public int getId() {
-        // some code goes here
         return _file.getAbsoluteFile().hashCode();
     }
 
     /**
      * Returns the TupleDesc of the table stored in this DbFile.
-     * 
+     *
      * @return TupleDesc of this DbFile.
      */
     public TupleDesc getTupleDesc() {
-        // some code goes here
         return _td;
     }
 
     // see DbFile.java for javadocs
     public Page readPage(PageId pid) {
-        // some code goes here
         HeapPageId hpid = (HeapPageId) pid;
         int pgNo = hpid.pageNumber();
         int fileOffset = pgNo * BufferPool.getPageSize();
@@ -110,27 +104,24 @@ public class HeapFile implements DbFile {
     public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
         // some code goes here
-        // not necessary for lab1
         return null;
+        // not necessary for lab1
     }
 
     // see DbFile.java for javadocs
     public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t) throws DbException,
             TransactionAbortedException {
         // some code goes here
-        // not necessary for lab1
         return null;
+        // not necessary for lab1
     }
 
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
-        // some code goes here
         return new DbFileIterator() {
-
             private boolean _isOpen = false;
             private HeapPage _curPage = null;
             private Iterator<Tuple> _cursor = null;
-
 
             @Override
             public void open() throws DbException, TransactionAbortedException {
@@ -154,6 +145,7 @@ public class HeapFile implements DbFile {
                         return false;
 
                     HeapPageId hpid = new HeapPageId(getId(), nextPageNum);
+
                     _curPage = (HeapPage) Database.getBufferPool().getPage(tid, hpid, Permissions.READ_ONLY);
                     _cursor = _curPage.iterator();
                     return _cursor.hasNext();
@@ -184,6 +176,5 @@ public class HeapFile implements DbFile {
             }
         };
     }
-
 }
 

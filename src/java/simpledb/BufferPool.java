@@ -3,6 +3,7 @@ package simpledb;
 import java.io.*;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -21,13 +22,13 @@ public class BufferPool {
     private static final int PAGE_SIZE = 4096;
 
     private static int pageSize = PAGE_SIZE;
-
+    
     /** Default number of pages passed to the constructor. This is used by
     other classes. BufferPool should use the numPages argument to the
     constructor instead. */
     public static final int DEFAULT_PAGES = 50;
-    private int _numPages;
 
+    private int _numPages;
     private HashMap<PageId, Page> _pagePool;
 
     /**
@@ -36,7 +37,6 @@ public class BufferPool {
      * @param numPages maximum number of pages in this buffer pool.
      */
     public BufferPool(int numPages) {
-        // some code goes here
         this._numPages = numPages;
         this._pagePool = new HashMap<>();
     }
@@ -47,12 +47,12 @@ public class BufferPool {
     
     // THIS FUNCTION SHOULD ONLY BE USED FOR TESTING!!
     public static void setPageSize(int pageSize) {
-    	BufferPool.pageSize = pageSize;
+        BufferPool.pageSize = pageSize;
     }
     
     // THIS FUNCTION SHOULD ONLY BE USED FOR TESTING!!
     public static void resetPageSize() {
-    	BufferPool.pageSize = PAGE_SIZE;
+        BufferPool.pageSize = PAGE_SIZE;
     }
 
     /**
@@ -72,23 +72,24 @@ public class BufferPool {
      */
     public Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
-        // some code goes here
         if (_pagePool.containsKey(pid)) {
             return _pagePool.get(pid);
         } else {
             // retrieve page data
             int tableId = pid.getTableId();
             HeapFile hf = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+            // detect if cache is full, evict if fulled.
             try {
                 HeapPage page = (HeapPage) hf.readPage(pid);
+
+                if (_pagePool.size() >= _numPages) {    // Reached max capacity. Evict a page.
+                    evictPage();
+                }
+
                 _pagePool.put(pid, new HeapPage((HeapPageId) pid, page.getPageData()));
                 return page;
             } catch (IOException e) {
                 e.printStackTrace();
-            }
-            // detect if cache is full, evict if fulled.
-            if (_pagePool.size() >= _numPages) {
-                throw new DbException(String.format("BufferPool reaches maximum limit (%i) pages", _numPages));
             }
         }
 
@@ -185,9 +186,11 @@ public class BufferPool {
      *     break simpledb if running in NO STEAL mode.
      */
     public synchronized void flushAllPages() throws IOException {
-        // some code goes here
-        // not necessary for lab1
-
+        Iterator<PageId> iter = _pagePool.keySet().iterator();
+        while(iter.hasNext()){
+            PageId pageId = iter.next();
+            flushPage(pageId);
+        }
     }
 
     /** Remove the specific page id from the buffer pool.
@@ -208,8 +211,13 @@ public class BufferPool {
      * @param pid an ID indicating the page to flush
      */
     private synchronized  void flushPage(PageId pid) throws IOException {
-        // some code goes here
-        // not necessary for lab1
+        Page page = _pagePool.get(pid);
+        if(page == null){
+            return; // Can't find in buffer.
+        }
+        DbFile file = Database.getCatalog().getDatabaseFile(pid.getTableId());
+        file.writePage(page);
+        page.markDirty(false, null);    // mark as not dirty
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -223,9 +231,21 @@ public class BufferPool {
      * Discards a page from the buffer pool.
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
-    private synchronized  void evictPage() throws DbException {
-        // some code goes here
-        // not necessary for lab1
+    private synchronized void evictPage() throws DbException {
+        for(PageId pageId: _pagePool.keySet()){
+            Page page = _pagePool.get(pageId);
+            if(page.isDirty() == null){ // is not dirty
+                try{
+                    flushPage(pageId);
+                    _pagePool.remove(pageId);
+                    return;
+                } catch (java.io.IOException e){
+                    throw new DbException("Cannot flush page(id = " + pageId + ")");
+                }
+            }
+        }
+
+        throw new DbException("Cannot find undirty page to evict in BufferPool.");
     }
 
 }
