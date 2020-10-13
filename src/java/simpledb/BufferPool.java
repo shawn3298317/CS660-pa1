@@ -3,6 +3,7 @@ package simpledb;
 import java.io.*;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -28,7 +29,8 @@ public class BufferPool {
     public static final int DEFAULT_PAGES = 50;
     private int _numPages;
 
-    private HashMap<PageId, Page> _pagePool;
+    private HashMap<PageId, Page> _pagePool; // cache w/t limited memory (DEFAULT_PAGES).
+    private LinkedList<PageId> _pageRecencyList; // doubly linked list that keep tracks of page recency.
 
     /**
      * Creates a BufferPool that caches up to numPages pages.
@@ -39,6 +41,7 @@ public class BufferPool {
         // some code goes here
         this._numPages = numPages;
         this._pagePool = new HashMap<>();
+        this._pageRecencyList = new LinkedList<>();
     }
     
     public static int getPageSize() {
@@ -74,21 +77,27 @@ public class BufferPool {
         throws TransactionAbortedException, DbException {
         // some code goes here
         if (_pagePool.containsKey(pid)) {
+            // update recency accordingly
+            updateRecency(pid);
             return _pagePool.get(pid);
         } else {
             // retrieve page data
             int tableId = pid.getTableId();
             HeapFile hf = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+
             try {
+                // detect if _pagePool is full, evict if fulled.
+
+                if (_pagePool.size() >= _numPages) {
+                    Debug.log("BufferPool reached maximum pages (%d), evicting page now...", _numPages);
+                    evictPage();
+                }
                 HeapPage page = (HeapPage) hf.readPage(pid);
                 _pagePool.put(pid, new HeapPage((HeapPageId) pid, page.getPageData()));
+                updateRecency(pid);
                 return page;
             } catch (IOException e) {
                 e.printStackTrace();
-            }
-            // detect if cache is full, evict if fulled.
-            if (_pagePool.size() >= _numPages) {
-                throw new DbException(String.format("BufferPool reaches maximum limit (%i) pages", _numPages));
             }
         }
 
@@ -210,6 +219,12 @@ public class BufferPool {
     private synchronized  void flushPage(PageId pid) throws IOException {
         // some code goes here
         // not necessary for lab1
+
+        int tableId = pid.getTableId();
+        // HeapFile hf = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+        HeapFile hf = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+        HeapPage removedPage = (HeapPage) _pagePool.remove(pid);
+        hf.writePage(removedPage);
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -225,7 +240,29 @@ public class BufferPool {
      */
     private synchronized  void evictPage() throws DbException {
         // some code goes here
-        // not necessary for lab1
+        // not necessary for lab1r
+
+        // determine which page to evict: LRU policy
+        PageId flush_pid = _pageRecencyList.removeLast();
+        // MRU policy
+        // PageId flush_pid = _pageRecencyList.removeFirst();
+
+        // flush popped page to disk
+        try {
+            flushPage(flush_pid);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Find pid in recencyList and move it to list head.
+     */
+    private synchronized void updateRecency(PageId pid) {
+        int node_index = _pageRecencyList.indexOf(pid); // O(N)
+        if (node_index >= 0 && node_index < _pageRecencyList.size())
+            _pageRecencyList.remove(node_index);
+        _pageRecencyList.addFirst(pid);
     }
 
 }

@@ -1,10 +1,13 @@
 package simpledb;
 
+import java.sql.Timestamp;
+
 /** Unique identifier for HeapPage objects. */
 public class HeapPageId implements PageId {
 
     private int _tableId;
     private int _pgNo;
+    // private Timestamp _timestamp;
 
     /**
      * Constructor. Create a page id structure for a specific page of a
@@ -17,6 +20,7 @@ public class HeapPageId implements PageId {
         // some code goes here
         this._tableId = tableId;
         this._pgNo = pgNo;
+        // this._timestamp = null;
     }
 
     /** @return the table associated with this PageId */
@@ -76,4 +80,11 @@ public class HeapPageId implements PageId {
         return data;
     }
 
+    /*public void setTimestamp(Timestamp ts) {
+        _timestamp = ts;
+    }
+
+    public Timestamp getTimestamp() {
+        return _timestamp;
+    }*/
 }

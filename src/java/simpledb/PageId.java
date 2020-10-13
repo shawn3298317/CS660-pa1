@@ -1,5 +1,7 @@
 package simpledb;
 
+import java.sql.Timestamp;
+
 /** PageId is an interface to a specific page of a specific table. */
 public interface PageId {
 
@@ -32,5 +34,10 @@ public interface PageId {
     public boolean equals(Object o);
 
     public int pageNumber();
+
+    //public void setTimestamp(Timestamp ts);
+    //public Timestamp getTimestamp();
+
+
 }
 
