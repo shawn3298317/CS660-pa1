@@ -83,25 +83,22 @@ public class BufferPool {
         } else {
             // retrieve page data
             int tableId = pid.getTableId();
-            HeapFile hf = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+            // HeapFile hf = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
+            DbFile df = Database.getCatalog().getDatabaseFile(tableId);
 
-            try {
-                // detect if _pagePool is full, evict if fulled.
-
-                if (_pagePool.size() >= _numPages) {
-                    Debug.log("BufferPool reached maximum pages (%d), evicting page now...", _numPages);
-                    evictPage();
-                }
-                HeapPage page = (HeapPage) hf.readPage(pid);
-                _pagePool.put(pid, new HeapPage((HeapPageId) pid, page.getPageData()));
-                updateRecency(pid);
-                return page;
-            } catch (IOException e) {
-                e.printStackTrace();
+            // detect if _pagePool is full, evict if fulled.
+            if (_pagePool.size() >= _numPages) {
+                Debug.log("BufferPool reached maximum pages (%d), evicting page now...", _numPages);
+                evictPage();
             }
-        }
+            // HeapPage page = (HeapPage) hf.readPage(pid);
+            // _pagePool.put(pid, new HeapPage((HeapPageId) pid, page.getPageData()));
+            Page page = df.readPage(pid);
 
-        return null;
+            _pagePool.put(pid, page);
+            updateRecency(pid);
+            return page;
+        }
     }
 
     /**
@@ -221,10 +218,9 @@ public class BufferPool {
         // not necessary for lab1
 
         int tableId = pid.getTableId();
-        // HeapFile hf = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
-        HeapFile hf = (HeapFile) Database.getCatalog().getDatabaseFile(tableId);
-        HeapPage removedPage = (HeapPage) _pagePool.remove(pid);
-        hf.writePage(removedPage);
+        DbFile df = Database.getCatalog().getDatabaseFile(tableId);
+        Page removedPage = _pagePool.remove(pid);
+        df.writePage(removedPage);
     }
 
     /** Write all pages of the specified transaction to disk.

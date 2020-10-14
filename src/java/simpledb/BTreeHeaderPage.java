@@ -61,7 +61,7 @@ public class BTreeHeaderPage implements Page {
 
 		dis.close();
 
-		setBeforeImage();
+		setBeforeImage(); //?
 	}
 
 	/**

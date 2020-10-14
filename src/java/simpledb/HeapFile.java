@@ -83,6 +83,8 @@ public class HeapFile implements DbFile {
             int readLen = Math.min(BufferPool.getPageSize(), (int)(_fileSize - fileOffset));
             fi.seek(fileOffset);
             fi.read(data, 0, readLen);
+            fi.close();
+
             return new HeapPage(hpid, data);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -104,6 +106,7 @@ public class HeapFile implements DbFile {
             byte[] data = page.getPageData();
             fi.seek(fileOffset);
             fi.write(data);
+            fi.close();
 
         } catch (FileNotFoundException e) {
             e.printStackTrace();

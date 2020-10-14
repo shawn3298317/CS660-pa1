@@ -23,7 +23,7 @@ public class BTreeFile implements DbFile {
 
 	private final File f;
 	private final TupleDesc td;
-	private final int tableid ;
+	private final int tableid;
 	private int keyField;
 
 	/**
@@ -150,15 +150,11 @@ public class BTreeFile implements DbFile {
 		
 		byte[] data = page.getPageData();
 		RandomAccessFile rf = new RandomAccessFile(f, "rw");
-		if(id.pgcateg() == BTreePageId.ROOT_PTR) {
-			rf.write(data);
-			rf.close();
+		if (id.pgcateg() != BTreePageId.ROOT_PTR) {
+			rf.seek(BTreeRootPtrPage.getPageSize() + (page.getId().pageNumber() - 1) * BufferPool.getPageSize());
 		}
-		else {
-			rf.seek(BTreeRootPtrPage.getPageSize() + (page.getId().pageNumber()-1) * BufferPool.getPageSize());
-			rf.write(data);
-			rf.close();
-		}
+		rf.write(data);
+		rf.close();
 	}
 	
 	/**
