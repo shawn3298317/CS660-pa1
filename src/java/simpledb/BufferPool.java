@@ -193,6 +193,7 @@ public class BufferPool {
     public synchronized void flushAllPages() throws IOException {
         // some code goes here
         // not necessary for lab1
+        // TODO: implement this...
 
     }
 
@@ -221,6 +222,7 @@ public class BufferPool {
         DbFile df = Database.getCatalog().getDatabaseFile(tableId);
         Page removedPage = _pagePool.remove(pid);
         df.writePage(removedPage);
+        removedPage.markDirty(false, null);
     }
 
     /** Write all pages of the specified transaction to disk.

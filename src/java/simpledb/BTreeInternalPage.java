@@ -21,6 +21,13 @@ public class BTreeInternalPage extends BTreePage {
 	
 	private int childCategory; // either leaf or internal
 
+	/**
+	 * TODO: Add documentation...
+	 * @param lowerBound
+	 * @param upperBound
+	 * @param checkOccupancy
+	 * @param depth
+	 */
 	public void checkRep(Field lowerBound, Field upperBound, boolean checkOccupancy, int depth) {
 		Field prev = lowerBound;
 		assert(this.getId().pgcateg() == BTreePageId.INTERNAL);
