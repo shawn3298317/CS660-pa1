@@ -213,7 +213,7 @@ public class BTreeFile implements DbFile {
 					Debug.log("Searching left child (%s <= %s)", f.toString(), cur_key.toString());
 					return findLeafPage(tid, dirtypages, next.getLeftChild(), perm, f);
 				} else { // larger, find right child
-					Debug.log("Searching right child (%s <= %s)", f.toString(), cur_key.toString());
+					Debug.log("Searching right child (%s > %s)", f.toString(), cur_key.toString());
 					return findLeafPage(tid, dirtypages, next.getRightChild(), perm, f);
 				}
 			}
@@ -264,15 +264,72 @@ public class BTreeFile implements DbFile {
 	protected BTreeLeafPage splitLeafPage(TransactionId tid, HashMap<PageId, Page> dirtypages, BTreeLeafPage page, Field field) 
 			throws DbException, IOException, TransactionAbortedException {
 		// some code goes here
-        //
-        // Split the leaf page by adding a new page on the right of the existing
-		// page and moving half of the tuples to the new page.  Copy the middle key up
-		// into the parent page, and recursively split the parent as needed to accommodate
-		// the new entry.  getParentWithEmtpySlots() will be useful here.  Don't forget to update
-		// the sibling pointers of all the affected leaf pages.  Return the page into which a 
-		// tuple with the given key field should be inserted.
-        return null;
-		
+
+        /* Split the leaf page by adding a new page on the right of the existing
+		 page and moving half of the tuples to the new page.  Copy the middle key up
+		 into the parent page, and recursively split the parent as needed to accommodate
+		 the new entry.  getParentWithEmtpySlots() will be useful here.  Don't forget to update
+		 the sibling pointers of all the affected leaf pages.  Return the page into which a
+		 tuple with the given key field should be inserted. */
+
+		// create new sibling leaf page & update linkages
+		// TODO: figure out how to set keyField for new page?
+		BTreeLeafPage rightLeafPage = (BTreeLeafPage) getEmptyPage(tid, dirtypages, BTreePageId.LEAF);
+		rightLeafPage.setLeftSiblingId(page.getId());
+		rightLeafPage.setRightSiblingId(page.getRightSiblingId());
+		page.setRightSiblingId(rightLeafPage.getId());
+
+		// find middle key
+		Tuple mid_tup = null;
+		// Field mid_key = null;
+		Iterator<Tuple> it = page.iterator();
+		Iterator<Tuple> it_rev = page.reverseIterator();
+
+		Tuple tup = null;
+		Tuple rev_tup = null;
+		while (it.hasNext() && it_rev.hasNext()) {
+			tup = it.next();
+			Tuple prev_rev_tup = rev_tup;
+			rev_tup = it_rev.next();
+			// even value tuples
+			if (tup == prev_rev_tup && tup != null) {
+				Debug.log("Found middle tuple: %s - %s in even value list",
+						tup.getRecordId().toString(), prev_rev_tup.getRecordId().toString());
+				mid_tup = tup;
+				break;
+			}
+			// odd value tuples
+			if (tup == rev_tup && tup != null) {
+				Debug.log("Found middle tuple: %s - %s in odd value list",
+						tup.getRecordId().toString(), rev_tup.getRecordId().toString());
+				mid_tup = tup;
+				break;
+			}
+		}
+
+		// copy latter half tuples to new right leaf page
+		page.deleteTuple(mid_tup);
+		rightLeafPage.insertTuple(mid_tup);
+		while (it.hasNext()) {
+			Tuple next = it.next();
+			page.deleteTuple(next); // safe delete
+			rightLeafPage.insertTuple(next);
+		}
+
+		// Get parent node
+		BTreeInternalPage parent = getParentWithEmptySlots(tid, dirtypages, page.getParentId(), field);
+
+		// Insert copied up middle key to parent node.
+		Field mid_key = mid_tup.getField(this.keyField);
+		BTreeEntry to_insert = new BTreeEntry(mid_key, page.getId(), rightLeafPage.getId());
+		parent.insertEntry(to_insert);
+
+		// use the input field and middle key to decide which page to return
+		if (field.compare(Op.LESS_THAN_OR_EQ, mid_key))
+			return page;
+		else
+			return rightLeafPage;
+
 	}
 	
 	/**
@@ -301,7 +358,64 @@ public class BTreeFile implements DbFile {
 			BTreeInternalPage page, Field field) 
 					throws DbException, IOException, TransactionAbortedException {
 		// some code goes here
-		return null;
+
+		// create empty sibling page
+		BTreeInternalPage rightInternalPage = (BTreeInternalPage) getEmptyPage(tid, dirtypages, BTreePageId.INTERNAL);
+
+		// find middle key
+		// TODO: abstract mid_key finding logic as a static helper method in this file
+		BTreeEntry mid_entry = null;
+		Iterator<BTreeEntry> it = page.iterator();
+		Iterator<BTreeEntry> it_rev = page.reverseIterator();
+
+		BTreeEntry entry = null;
+		BTreeEntry rev_entry = null;
+		int count = 0;
+		while (it.hasNext() && it_rev.hasNext()) {
+			entry = it.next();
+			BTreeEntry prev_rev_entry = rev_entry;
+			rev_entry = it_rev.next();
+
+			// even value tuples
+			if (prev_rev_entry != null && entry != null &&
+					(entry.getRecordId().equals(prev_rev_entry.getRecordId()))) {
+				Debug.log("Found middle entry: %s - %s in even value list",
+						entry.getRecordId().toString(), prev_rev_entry.getRecordId().toString());
+				mid_entry = entry;
+				break;
+			}
+			// odd value tuples
+			if ((entry.getRecordId().equals(rev_entry.getRecordId())) && entry != null) {
+				Debug.log("Found middle entry: %s - %s in odd value list",
+						entry.toString(), rev_entry.toString());
+				mid_entry = entry;
+				break;
+			}
+			//count += 1;
+		}
+
+		// copy latter half entries to new right internal page
+		page.deleteKeyAndRightChild(mid_entry);
+		while (it.hasNext()) {
+			BTreeEntry next = it.next();
+			page.deleteKeyAndRightChild(next); // safe delete
+			rightInternalPage.insertEntry(next);
+		}
+
+		// Get parent node
+		BTreeInternalPage parent = getParentWithEmptySlots(tid, dirtypages, page.getParentId(), field);
+
+		// Insert copied up middle key to parent node.
+		parent.insertEntry(mid_entry);
+		updateParentPointers(tid, dirtypages, page);
+		updateParentPointers(tid, dirtypages, rightInternalPage);
+
+		// use the input field and middle key to decide which page to return
+		if (field.compare(Op.LESS_THAN_OR_EQ, mid_entry.getKey()))
+			return page;
+		else
+			return rightInternalPage;
+
 	}
 	
 	/**
@@ -328,7 +442,7 @@ public class BTreeFile implements DbFile {
 		
 		// create a parent node if necessary
 		// this will be the new root of the tree
-		if(parentId.pgcateg() == BTreePageId.ROOT_PTR) {
+		if(parentId.pgcateg() == BTreePageId.ROOT_PTR) { // if current page happens to be root node
 			parent = (BTreeInternalPage) getEmptyPage(tid, dirtypages, BTreePageId.INTERNAL);
 
 			// update the root pointer
