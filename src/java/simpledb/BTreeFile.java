@@ -405,6 +405,10 @@ public class BTreeFile implements DbFile {
 		// Get parent node
 		BTreeInternalPage parent = getParentWithEmptySlots(tid, dirtypages, page.getParentId(), field);
 
+		// Update moved up entry linkages
+		mid_entry.setLeftChild(page.getId());
+		mid_entry.setRightChild(rightInternalPage.getId());
+
 		// Insert copied up middle key to parent node.
 		parent.insertEntry(mid_entry);
 		updateParentPointers(tid, dirtypages, page);
