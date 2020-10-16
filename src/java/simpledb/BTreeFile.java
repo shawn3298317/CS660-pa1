@@ -806,9 +806,42 @@ public class BTreeFile implements DbFile {
 	protected void stealFromLeftInternalPage(TransactionId tid, HashMap<PageId, Page> dirtypages, 
 			BTreeInternalPage page, BTreeInternalPage leftSibling, BTreeInternalPage parent,
 			BTreeEntry parentEntry) throws DbException, IOException, TransactionAbortedException {
-		// some code goes here
+
+		int moveAmt = (leftSibling.getNumEntries() - page.getNumEntries())/2;
+		Iterator<BTreeEntry> sibItr = leftSibling.reverseIterator();
+		BTreeEntry pageLeftMost = page.iterator().next();
+
+		for(int i=0; i<moveAmt; i++){
+			// Get sibling entry
+			BTreeEntry newParentEntry = sibItr.next();
+			leftSibling.deleteKeyAndRightChild(newParentEntry);
+
+			BTreePageId newParentEntryOldRightChild = newParentEntry.getRightChild();	// TODO: rename better name
+
+			// Set newParentEntry to have same left, right child as parentEntry.
+			newParentEntry.setLeftChild(parentEntry.getLeftChild());
+			newParentEntry.setRightChild(parentEntry.getRightChild());
+
+			// Delete parent entry, Insert to Page and Set left/right child.
+			parent.deleteKeyAndRightChild(parentEntry);
+			parentEntry.setLeftChild(newParentEntryOldRightChild);
+			parentEntry.setRightChild(pageLeftMost.getLeftChild());
+
+			page.insertEntry(parentEntry);
+			parent.insertEntry(newParentEntry);
+
+			// Update original leftSibling's rightChild's parentPageId.
+			BTreePage childPage = (BTreePage) getPage(tid, dirtypages, newParentEntryOldRightChild, Permissions.READ_WRITE);
+			childPage.setParentId(page.getId());
+
+			pageLeftMost = parentEntry;
+			parentEntry = newParentEntry;
+		}
+
+		updateParentPointers(tid,dirtypages,page);
+		updateParentPointers(tid,dirtypages,leftSibling);
 	}
-	
+
 	/**
 	 * Steal entries from the right sibling and copy them to the given page so that both pages are at least
 	 * half full. Keys can be thought of as rotating through the parent entry, so the original key in the 
@@ -835,6 +868,40 @@ public class BTreeFile implements DbFile {
 		// that the entries are evenly distributed. Be sure to update
 		// the corresponding parent entry. Be sure to update the parent
 		// pointers of all children in the entries that were moved.
+
+		int moveAmt = (rightSibling.getNumEntries() - page.getNumEntries())/2;
+		Iterator<BTreeEntry> sibItr = rightSibling.iterator();
+		BTreeEntry pageRightMost = page.reverseIterator().next();
+
+		for(int i=0; i<moveAmt; i++){
+			// Get sibling entry
+			BTreeEntry newParentEntry = sibItr.next();
+			rightSibling.deleteKeyAndLeftChild(newParentEntry);
+
+			BTreePageId newParentEntryOldLeftChild = newParentEntry.getLeftChild();	// TODO: rename better name
+
+			// Set newParentEntry to have same left, right child as parentEntry.
+			newParentEntry.setLeftChild(parentEntry.getLeftChild());
+			newParentEntry.setRightChild(parentEntry.getRightChild());
+
+			// Delete parent entry, Insert to Page and Set left/right child.
+			parent.deleteKeyAndLeftChild(parentEntry);
+			parentEntry.setLeftChild(pageRightMost.getRightChild());
+			parentEntry.setRightChild(newParentEntryOldLeftChild);
+
+			page.insertEntry(parentEntry);
+			parent.insertEntry(newParentEntry);
+
+			// Update original leftSibling's rightChild's parentPageId.
+			BTreePage childPage = (BTreePage) getPage(tid, dirtypages, newParentEntryOldLeftChild, Permissions.READ_WRITE);
+			childPage.setParentId(page.getId());
+
+			pageRightMost = parentEntry;
+			parentEntry = newParentEntry;
+		}
+
+		updateParentPointers(tid,dirtypages,page);
+		updateParentPointers(tid,dirtypages,rightSibling);
 	}
 	
 	/**
