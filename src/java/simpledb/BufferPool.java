@@ -1,9 +1,10 @@
 package simpledb;
 
+import sun.security.ssl.Record;
+
 import java.io.*;
 
-import java.util.HashMap;
-import java.util.LinkedList;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -164,6 +165,24 @@ public class BufferPool {
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+
+        // TODO: implement locks in PA3
+
+        // find dirtied pages
+        DbFile df = Database.getCatalog().getDatabaseFile(tableId);
+        ArrayList<Page> dirtied_pages = df.insertTuple(tid, t);
+
+        // mark dirty bits for all the dirtied pages
+        for (Page p: dirtied_pages) {
+            p.markDirty(true, tid);
+            PageId pid = p.getId();
+            if (!_pagePool.containsKey(p.getId())) {
+                if (_pagePool.size() > pageSize)
+                    evictPage();
+            }
+            _pagePool.put(p.getId(), p);
+        }
+
     }
 
     /**
@@ -179,10 +198,45 @@ public class BufferPool {
      * @param tid the transaction deleting the tuple.
      * @param t the tuple to delete
      */
-    public  void deleteTuple(TransactionId tid, Tuple t)
+    public void deleteTuple(TransactionId tid, Tuple t)
         throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
+
+        // find the page that contains the tuple in _pagePool
+        RecordId rid = t.getRecordId();
+        PageId pid = rid.getPageId();
+        DbFile df = Database.getCatalog().getDatabaseFile(pid.getTableId());
+        ArrayList<Page> dirtied_pages = df.deleteTuple(tid, t);
+
+        for (Page p: dirtied_pages) {
+            p.markDirty(true, tid);
+
+            if (!_pagePool.containsKey(p.getId())) {
+                if (_pagePool.size() > pageSize)
+                    evictPage();
+            }
+            _pagePool.put(p.getId(), p);
+
+        }
+
+//        Page p = getPage(tid, pid, Permissions.READ_WRITE);
+//        p.markDirty(true, tid);
+
+
+//        if (_pagePool.containsKey(rid.getPageId())) {
+//            Debug.log("Found page that contains tuple: %s", t.getRecordId().toString());
+//            Page p = _pagePool.get(rid.getPageId());
+//            if (p instanceof BTreeLeafPage) {
+//                Debug.log("Deleting tuple: %s from pageID: %s", t.getRecordId().toString(), p.getId().toString());
+//                ((BTreeLeafPage) p).deleteTuple(t);
+//            } else if (p instanceof HeapPage) {
+//                Debug.log("Deleting tuple: %s from pageID: %s", t.getRecordId().toString(), p.getId().toString());
+//                ((HeapPage) p).deleteTuple(t);
+//            }
+//            p.markDirty(true, tid);
+//        }
+
     }
 
     /**
@@ -195,6 +249,17 @@ public class BufferPool {
         // not necessary for lab1
         // TODO: implement this...
 
+//        Iterator it = _pagePool.entrySet().iterator();
+//
+//        if (it.hasNext()) {
+//            Map.Entry kv = (Map.Entry) it.next();
+//            Page p = (Page) kv.getValue();
+//            PageId pid = (PageId) kv.getKey();
+//            if (p.isDirty()) {
+//
+//            }
+//        }
+        System.out.println("Not implemented here flushAllPages()!!!");
     }
 
     /** Remove the specific page id from the buffer pool.

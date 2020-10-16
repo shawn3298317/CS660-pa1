@@ -194,7 +194,7 @@ public class BTreeFile implements DbFile {
 		// some code goes here
 
 		if (pid.pgcateg() == BTreePageId.LEAF) {
-			Debug.log("Found leaf node!!");
+			// Debug.log("Found leaf node!!");
 			return (BTreeLeafPage) this.getPage(tid, dirtypages, pid, perm);
 		}
 		else if (pid.pgcateg() == BTreePageId.INTERNAL) {
@@ -992,8 +992,11 @@ public class BTreeFile implements DbFile {
 		// deleteParentEntry() will be useful here
 
 		// Pull/copy parentEntry and update its child pointer before it's deleted
-		BTreePageId l_id = leftPage.getChildId(leftPage.getNumEntries() - 1); // get child pointer of last entry in leftPage
-		BTreePageId r_id = rightPage.getChildId(0); // get child pointer of first entry in rightPage
+		BTreeEntry leftRightMostEntry = leftPage.reverseIterator().next();
+		BTreeEntry rightLeftMostEntry = rightPage.iterator().next();
+		BTreePageId l_id = leftRightMostEntry.getRightChild();
+		BTreePageId r_id = rightLeftMostEntry.getLeftChild();
+
 		BTreeEntry pulled_entry = new BTreeEntry(parentEntry.getKey(), l_id, r_id);
 
 		// Insert pulled entry & update its right child's parent
@@ -1015,11 +1018,17 @@ public class BTreeFile implements DbFile {
 			leftPage.insertEntry(next);
 		}
 
+		// update parent pointer
+		//updateParentPointers(tid, dirtypages, leftPage);
+		//updateParentPointers(tid, dirtypages, rightPage);
+
+
 		// empty rightPage
 		setEmptyPage(tid, dirtypages, rightPage.getId().pageNumber());
 
 		// delete parent entry (will kickoff merging/stealing accordingly)
 		deleteParentEntry(tid, dirtypages, leftPage, parent, parentEntry);
+
 	}
 	
 	/**
