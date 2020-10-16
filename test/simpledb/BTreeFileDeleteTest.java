@@ -32,7 +32,8 @@ public class BTreeFileDeleteTest extends SimpleDbTestBase {
 	/**
 	 * Unit test for BTreeFile.deleteTuple()
 	 */
-	@Test public void deleteTuple() throws Exception {
+	@Test
+	public void deleteTuple() throws Exception {
 		BTreeFile f;
 		f = BTreeUtility.createRandomBTreeFile(2, 20, null, null, 0);
 		DbFileIterator it = f.iterator(tid);
