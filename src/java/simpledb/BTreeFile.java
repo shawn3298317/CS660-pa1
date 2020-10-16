@@ -849,6 +849,31 @@ public class BTreeFile implements DbFile {
 		// the sibling pointers, and make the right page available for reuse.
 		// Delete the entry in the parent corresponding to the two pages that are merging -
 		// deleteParentEntry() will be useful here
+
+		// update leftPage's right sibling
+		BTreePageId r_right_id = rightPage.getRightSiblingId();
+		leftPage.setRightSiblingId(r_right_id);
+
+		// update right right page's left sibling
+		if (r_right_id != null) {
+			BTreeLeafPage r_right_page = (BTreeLeafPage) getPage(tid, dirtypages, r_right_id, Permissions.READ_WRITE);
+			r_right_page.setLeftSiblingId(leftPage.getId());
+		}
+
+		// delete and insert rightPage tuples to left
+		Iterator<Tuple> it = rightPage.iterator();
+
+		while (it.hasNext()) {
+			Tuple next = it.next();
+			rightPage.deleteTuple(next); // need to delete and set tuple RecordId to null before inserting
+			leftPage.insertTuple(next);
+		}
+
+		// empty right page
+		setEmptyPage(tid, dirtypages, rightPage.getId().pageNumber());
+
+		// delete parent entry (will kickoff merging/stealing accordingly)
+		deleteParentEntry(tid, dirtypages, leftPage, parent, parentEntry);
 	}
 
 	/**
@@ -882,6 +907,36 @@ public class BTreeFile implements DbFile {
 		// and make the right page available for reuse
 		// Delete the entry in the parent corresponding to the two pages that are merging -
 		// deleteParentEntry() will be useful here
+
+		// Pull/copy parentEntry and update its child pointer before it's deleted
+		BTreePageId l_id = leftPage.getChildId(leftPage.getNumEntries() - 1); // get child pointer of last entry in leftPage
+		BTreePageId r_id = rightPage.getChildId(0); // get child pointer of first entry in rightPage
+		BTreeEntry pulled_entry = new BTreeEntry(parentEntry.getKey(), l_id, r_id);
+
+		// Insert pulled entry & update its right child's parent
+		leftPage.insertEntry(pulled_entry);
+		BTreePage pulled_r_child = (BTreePage) getPage(tid, dirtypages, pulled_entry.getRightChild(), Permissions.READ_WRITE);
+		pulled_r_child.setParentId(leftPage.getId());
+
+		// Insert rightPage entries and update right child's parent iteratively
+		Iterator<BTreeEntry> it = rightPage.iterator();
+		while (it.hasNext()) {
+			BTreeEntry next = it.next();
+
+			// update right child's parent pointer to point to leftPage
+			BTreePageId right_child_id = next.getRightChild();
+			BTreePage childPage = (BTreePage) getPage(tid, dirtypages, right_child_id, Permissions.READ_WRITE);
+			childPage.setParentId(leftPage.getId());
+
+			rightPage.deleteKeyAndRightChild(next);
+			leftPage.insertEntry(next);
+		}
+
+		// empty rightPage
+		setEmptyPage(tid, dirtypages, rightPage.getId().pageNumber());
+
+		// delete parent entry (will kickoff merging/stealing accordingly)
+		deleteParentEntry(tid, dirtypages, leftPage, parent, parentEntry);
 	}
 	
 	/**
