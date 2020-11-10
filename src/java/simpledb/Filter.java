@@ -9,6 +9,9 @@ public class Filter extends Operator {
 
     private static final long serialVersionUID = 1L;
 
+    private Predicate _predicate;
+    private DbIterator _child_op;
+
     /**
      * Constructor accepts a predicate to apply and a child operator to read
      * tuples to filter from.
@@ -20,29 +23,36 @@ public class Filter extends Operator {
      */
     public Filter(Predicate p, DbIterator child) {
         // some code goes here
+        this._predicate = p;
+        this._child_op = child;
     }
 
     public Predicate getPredicate() {
         // some code goes here
-        return null;
+        return _predicate;
     }
 
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
+        return _child_op.getTupleDesc();
     }
 
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
         // some code goes here
+        _child_op.open();
+        super.open();
     }
 
     public void close() {
         // some code goes here
+        super.close();
+        _child_op.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
         // some code goes here
+        _child_op.rewind();
     }
 
     /**
@@ -57,18 +67,27 @@ public class Filter extends Operator {
     protected Tuple fetchNext() throws NoSuchElementException,
             TransactionAbortedException, DbException {
         // some code goes here
+        while (_child_op.hasNext()) {
+            Tuple t = _child_op.next();
+            TupleDesc td = getTupleDesc(); // need it?
+            if (_predicate.filter(t))
+                return t;
+        }
         return null;
     }
 
     @Override
     public DbIterator[] getChildren() {
         // some code goes here
-        return null;
+        return new DbIterator[] { this._child_op };
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
         // some code goes here
+        if (this._child_op != children[0]) {
+            this._child_op = children[0];
+        }
     }
 
 }
