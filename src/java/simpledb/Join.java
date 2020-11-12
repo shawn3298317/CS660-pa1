@@ -115,7 +115,7 @@ public class Join extends Operator {
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
 
-        while (_child1.hasNext()) {
+        while (_child1.hasNext() || (!_child1.hasNext() && _child2.hasNext())) {
             if (cursor == null || !(_child2.hasNext())) {
                 cursor = _child1.next();
                 _child2.rewind();
