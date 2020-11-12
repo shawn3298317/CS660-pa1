@@ -283,7 +283,7 @@ public class HeapPage implements Page {
             for (int i=0; i < numSlots; i++) {
                 if (!isSlotUsed(i)) {
                     // Insert tuple and mark dirty
-                    t.setRecordId(new RecordId(getId(), t.getRecordId().tupleno()));
+                    t.setRecordId(new RecordId(getId(), i));
                     tuples[i] = t;
                     markSlotUsed(i, true);
                     return;
