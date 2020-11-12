@@ -128,7 +128,43 @@ public class HeapFile implements DbFile {
             throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
-        return null;
+
+        ArrayList<Page> dirtied_pages = new ArrayList<>();
+
+        // Find next available page in file
+        for (int i = 0; i < _numPages; i++) {
+            HeapPageId hpid = new HeapPageId(getId(), i);
+            HeapPage curpage = (HeapPage) Database.getBufferPool().getPage(tid, hpid, Permissions.READ_WRITE);
+            // Debug.log("curpage(%s) avail slots: (%d/%d)", curpage.getId(), curpage.getNumEmptySlots(), curpage.numSlots);
+            if (curpage.getNumEmptySlots() > 0) {
+                curpage.insertTuple(t);
+                dirtied_pages.add(curpage);
+                break;
+            }
+        }
+
+        // If can't find available page in file
+        if (dirtied_pages.isEmpty()) {
+
+            // create a new page and insert tuple
+            HeapPageId newhpid = new HeapPageId(getId(), _numPages);
+            HeapPage newpage = new HeapPage(newhpid, HeapPage.createEmptyPageData());
+            newpage.insertTuple(t);
+
+            // Append it to the physical file on disk
+            writePage(newpage);
+
+            // Update numpages and filesize accordingly
+            _fileSize = _file.length();
+            _numPages = (int) Math.ceil(_fileSize/BufferPool.getPageSize());
+
+            // Add to dirtied_pages list
+            dirtied_pages.add(newpage);
+
+            Debug.log("Writing to a new page! (new pg count: %d, %d)", _numPages, numPages());
+        }
+
+        return dirtied_pages;
     }
 
     // see DbFile.java for javadocs
@@ -136,7 +172,26 @@ public class HeapFile implements DbFile {
             TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
-        return null;
+
+        ArrayList<Page> dirtied_pages = new ArrayList<>();
+
+        // Traverse page to find page that contains the tuple to delete
+        for (int i = 0; i < _numPages; i++) {
+            HeapPageId hpid = new HeapPageId(getId(), i);
+            HeapPage curpage = (HeapPage) Database.getBufferPool().getPage(tid, hpid, Permissions.READ_WRITE);
+            try {
+                curpage.deleteTuple(t);
+                dirtied_pages.add(curpage);
+                return dirtied_pages;
+            } catch (DbException e) {
+                continue;
+            }
+        }
+
+        if (dirtied_pages.isEmpty())
+            throw new DbException(String.format("Tuple(%s) cannot be find anywhere in HeapFile(%s)", t.toString(), getId()));
+
+        return dirtied_pages;
     }
 
     // see DbFile.java for javadocs

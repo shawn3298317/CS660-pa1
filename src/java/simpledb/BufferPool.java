@@ -219,24 +219,6 @@ public class BufferPool {
             _pagePool.put(p.getId(), p);
 
         }
-
-//        Page p = getPage(tid, pid, Permissions.READ_WRITE);
-//        p.markDirty(true, tid);
-
-
-//        if (_pagePool.containsKey(rid.getPageId())) {
-//            Debug.log("Found page that contains tuple: %s", t.getRecordId().toString());
-//            Page p = _pagePool.get(rid.getPageId());
-//            if (p instanceof BTreeLeafPage) {
-//                Debug.log("Deleting tuple: %s from pageID: %s", t.getRecordId().toString(), p.getId().toString());
-//                ((BTreeLeafPage) p).deleteTuple(t);
-//            } else if (p instanceof HeapPage) {
-//                Debug.log("Deleting tuple: %s from pageID: %s", t.getRecordId().toString(), p.getId().toString());
-//                ((HeapPage) p).deleteTuple(t);
-//            }
-//            p.markDirty(true, tid);
-//        }
-
     }
 
     /**

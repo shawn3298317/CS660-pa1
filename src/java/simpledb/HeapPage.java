@@ -24,6 +24,9 @@ public class HeapPage implements Page {
     byte[] oldData;
     private final Byte oldDataLock=new Byte((byte)0);
 
+    private TransactionId _dirtier;
+    private boolean _is_dirty;
+
     /**
      * Create a HeapPage from a set of bytes of data read from disk.
      * The format of a HeapPage is a set of header bytes indicating
@@ -44,6 +47,8 @@ public class HeapPage implements Page {
         this.pid = id;
         this.td = Database.getCatalog().getTupleDesc(id.getTableId());
         this.numSlots = getNumTuples();
+        this._is_dirty = false;
+        this._dirtier = null;
         DataInputStream dis = new DataInputStream(new ByteArrayInputStream(data));
 
         // allocate and read the header slots of this page
@@ -249,6 +254,18 @@ public class HeapPage implements Page {
     public void deleteTuple(Tuple t) throws DbException {
         // some code goes here
         // not necessary for lab1
+        for (int i = 0; i < numSlots; i++) {
+            if (isSlotUsed(i)) {
+                // Delete if found match
+                if (tuples[i].getRecordId().equals(t.getRecordId())) {
+                    markSlotUsed(i,false);
+                    //  t.setRecordId(null);
+                    Debug.log("Deleted tuple at position(%d)", i);
+                    return;
+                }
+            }
+        }
+        throw new DbException(String.format("Cannot find Tuple(%s) in HeapPage(%s)", t.toString(), pid.toString()));
     }
 
     /**
@@ -261,6 +278,20 @@ public class HeapPage implements Page {
     public void insertTuple(Tuple t) throws DbException {
         // some code goes here
         // not necessary for lab1
+
+        if (getNumEmptySlots() > 0) {
+            for (int i=0; i < numSlots; i++) {
+                if (!isSlotUsed(i)) {
+                    // Insert tuple and mark dirty
+                    t.setRecordId(new RecordId(getId(), t.getRecordId().tupleno()));
+                    tuples[i] = t;
+                    markSlotUsed(i, true);
+                    return;
+                }
+            }
+        } else {
+            throw new DbException(String.format("HeapPage(%s) has no available slot", this.pid.toString()));
+        }
     }
 
     /**
@@ -270,6 +301,8 @@ public class HeapPage implements Page {
     public void markDirty(boolean dirty, TransactionId tid) {
         // some code goes here
 	    // not necessary for lab1
+        _is_dirty = dirty;
+        _dirtier = tid;
     }
 
     /**
@@ -278,7 +311,10 @@ public class HeapPage implements Page {
     public TransactionId isDirty() {
         // some code goes here
 	    // Not necessary for lab1
-        return null;      
+        if (_is_dirty)
+            return _dirtier;
+        else
+            return null;
     }
 
     /**
@@ -310,6 +346,10 @@ public class HeapPage implements Page {
     private void markSlotUsed(int i, boolean value) {
         // some code goes here
         // not necessary for lab1
+        if (value)
+            header[i/8] |= (0x1 << (i % 8));
+        else
+            header[i/8] &= (~(0x1 << (i % 8)));
     }
 
     /**
@@ -370,4 +410,3 @@ public class HeapPage implements Page {
         */
     }
 }
-
