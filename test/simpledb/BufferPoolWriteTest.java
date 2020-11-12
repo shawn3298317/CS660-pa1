@@ -41,6 +41,9 @@ public class BufferPoolWriteTest extends TestUtil.CreateHeapFile {
                 bw.close();
     			HeapPage p = new HeapPage(new HeapPageId(super.getId(), super.numPages() - 1), 
     					HeapPage.createEmptyPageData());
+    			// TODO: figure out how to keep track of num pages and file size automatically
+    			setNumPages(super.numPages()+1);
+				setFileSize(super.getFile().length());
     	        p.insertTuple(t);
     			dirtypages.add(p);
     		}
@@ -120,11 +123,11 @@ public class BufferPoolWriteTest extends TestUtil.CreateHeapFile {
     	HeapFileDuplicates hfd = new HeapFileDuplicates(empty.getFile(), empty.getTupleDesc(), 10);
     	Database.getCatalog().addTable(hfd, SystemTestUtil.getUUID());
     	Database.getBufferPool().insertTuple(tid, hfd.getId(), Utility.getHeapTuple(1, 2));
-    	
+
     	// there should now be 10 tuples (on 10 different pages) in the buffer pool
     	DbFileIterator it = hfd.iterator(tid);
     	it.open();
-    	
+
     	int count = 0;
     	while(it.hasNext()) {
     		it.next();

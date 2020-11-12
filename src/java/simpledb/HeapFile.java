@@ -123,6 +123,14 @@ public class HeapFile implements DbFile {
         return _numPages;
     }
 
+    protected void setNumPages(int num) {
+        _numPages = num;
+    }
+
+    protected void setFileSize(long size) {
+        _fileSize = size;
+    }
+
     // see DbFile.java for javadocs
     public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
