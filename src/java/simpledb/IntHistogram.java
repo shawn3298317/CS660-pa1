@@ -65,13 +65,20 @@ public class IntHistogram {
     public double estimateSelectivity(Predicate.Op op, int v) {
 
     	// some code goes here
-        v = max(min(_max, v), _min);
-        int bucket = getBucket(v);
 
-        if (op == Predicate.Op.EQUALS) { return _hist_freq[bucket]/_n_tuples; }
-        else if (op == Predicate.Op.NOT_EQUALS) { return (1.0 - _hist_freq[bucket]/_n_tuples); }
+        if (op == Predicate.Op.EQUALS) {
+            if (v < _min || v > _max) return 0.0;
+            int bucket = getBucket(v);
+            return _hist_freq[bucket]/_n_tuples;
+        } else if (op == Predicate.Op.NOT_EQUALS) {
+            if (v < _min || v > _max) return 1.0;
+            int bucket = getBucket(v);
+            return (1.0 - _hist_freq[bucket]/_n_tuples);
+        }
         else if (op == Predicate.Op.GREATER_THAN || op == Predicate.Op.GREATER_THAN_OR_EQ) {
 
+            v = max(min(_max, v), _min);
+            int bucket = getBucket(v);
             double w_b = ((double)_max - _min) / _n_buckets;
             double b_right = _min + (bucket+1) * w_b;
             double acum_selectivity = (b_right - v) / w_b * _hist_freq[bucket];
@@ -84,6 +91,8 @@ public class IntHistogram {
 
         } else if (op == Predicate.Op.LESS_THAN || op == Predicate.Op.LESS_THAN_OR_EQ) {
 
+            v = max(min(_max, v), _min);
+            int bucket = getBucket(v);
             double w_b = ((double)_max - _min) / _n_buckets;
             double b_left = _min + bucket * w_b;
             double acum_selectivity = (v - b_left) / w_b * _hist_freq[bucket];
