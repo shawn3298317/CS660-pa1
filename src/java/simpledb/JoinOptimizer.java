@@ -107,11 +107,14 @@ public class JoinOptimizer {
             // You do not need to implement proper support for these for Lab 5.
             return card1 + cost1 + cost2;
         } else {
-            // Insert your code here.
             // HINT: You may need to use the variable "j" if you implemented
             // a join algorithm that's more complicated than a basic
             // nested-loops join.
-            return -1.0;
+
+            //  joincost(t1 join t2) = scancost(t1) + ntups(t1) x scancost(t2) //IO cost
+            //   + ntups(t1) x ntups(t2)  //CPU cost
+
+            return cost1 + (double)card1 * cost2 + (double)card1 * card2;
         }
     }
 
@@ -155,9 +158,18 @@ public class JoinOptimizer {
             String field2PureName, int card1, int card2, boolean t1pkey,
             boolean t2pkey, Map<String, TableStats> stats,
             Map<String, Integer> tableAliasToId) {
-        int card = 1;
-        // some code goes here
-        return card <= 0 ? 1 : card;
+        if(joinOp == Predicate.Op.EQUALS){
+            if(t1pkey){         // t1 is primary key
+                return card2;
+            } else if(t2pkey){  // t2 is primary key
+                return card1;
+            } else {            // no primary key; assume larger of the two.
+                return Math.max(card1, card2);
+            }
+        } else {                // Assume a fixed fraction (30%) of cross product .
+            int est = (int)(card1 * card2 * 0.3);
+            return est < 1 ? 1 : est;
+        }
     }
 
     /**
