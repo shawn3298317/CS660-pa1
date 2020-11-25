@@ -1,8 +1,19 @@
 package simpledb;
 
+import static com.sun.javafx.util.Utils.sum;
+import static java.lang.Integer.max;
+import static java.lang.Integer.min;
+import static java.lang.Math.abs;
+
 /** A class to represent a fixed-width histogram over a single integer-based field.
  */
 public class IntHistogram {
+
+    private int _n_buckets;
+    private int _min;
+    private int _max;
+    private int _n_tuples;
+    private double[] _hist_freq;
 
     /**
      * Create a new IntHistogram.
@@ -22,6 +33,11 @@ public class IntHistogram {
      */
     public IntHistogram(int buckets, int min, int max) {
     	// some code goes here
+        this._n_buckets = buckets;
+        this._min = min;
+        this._max = max;
+        this._n_tuples = 0;
+        this._hist_freq = new double[_n_buckets];
     }
 
     /**
@@ -30,6 +46,10 @@ public class IntHistogram {
      */
     public void addValue(int v) {
     	// some code goes here
+        int bucket = getBucket(v);
+        // Debug.log("v: %d; bucket: %d; [%d, %d]/%d", v, bucket, _min, _max, _n_buckets);
+        _hist_freq[bucket] += 1.0;
+        _n_tuples += 1;
     }
 
     /**
@@ -45,7 +65,40 @@ public class IntHistogram {
     public double estimateSelectivity(Predicate.Op op, int v) {
 
     	// some code goes here
-        return -1.0;
+        v = max(min(_max, v), _min);
+        int bucket = getBucket(v);
+
+        if (op == Predicate.Op.EQUALS) { return _hist_freq[bucket]/_n_tuples; }
+        else if (op == Predicate.Op.NOT_EQUALS) { return (1.0 - _hist_freq[bucket]/_n_tuples); }
+        else if (op == Predicate.Op.GREATER_THAN || op == Predicate.Op.GREATER_THAN_OR_EQ) {
+
+            double w_b = ((double)_max - _min) / _n_buckets;
+            double b_right = _min + (bucket+1) * w_b;
+            double acum_selectivity = (b_right - v) / w_b * _hist_freq[bucket];
+//            Debug.log("bucket: %d, w_b: %f, b_right: %f; v = %d; selectivity: %f", bucket, w_b, b_right, v, acum_selectivity);
+            for (int i = bucket+1; i < _n_buckets; i++) {
+                acum_selectivity += (_hist_freq[i]);
+            }
+            acum_selectivity /= _n_tuples;
+            return acum_selectivity;
+
+        } else if (op == Predicate.Op.LESS_THAN || op == Predicate.Op.LESS_THAN_OR_EQ) {
+
+            double w_b = ((double)_max - _min) / _n_buckets;
+            double b_left = _min + bucket * w_b;
+            double acum_selectivity = (v - b_left) / w_b * _hist_freq[bucket];
+            Debug.log("bucket: %d, w_b: %f, b_right: %f; v = %d; (%f); selectivity: %f", bucket, w_b, b_left, v, _hist_freq[bucket], acum_selectivity);
+            for (int i = bucket-1; i >= 0; i--) {
+                acum_selectivity += (_hist_freq[i]);
+                Debug.log("[%d] + %f => %f", i, _hist_freq[i], acum_selectivity);
+            }
+            acum_selectivity /= _n_tuples;
+            Debug.log("Final select: %f", acum_selectivity);
+            return acum_selectivity;
+        }
+
+        return 1.0;
+
     }
     
     /**
@@ -59,7 +112,15 @@ public class IntHistogram {
     public double avgSelectivity()
     {
         // some code goes here
-        return 1.0;
+
+        // selectivity = avg(sum(selectivity for each bucket))
+        return sum(_hist_freq)/_n_buckets/_n_tuples;
+        // return 1.0;
+    }
+
+    private int getBucket(int v) {
+        int bucket = (int) (((double) v - _min) / (_max - _min) * _n_buckets);
+        return min(_n_buckets-1, bucket);
     }
     
     /**
@@ -67,6 +128,6 @@ public class IntHistogram {
      */
     public String toString() {
         // some code goes here
-        return null;
+        return String.format("Hist: %s; Avg_Selectivity: %f", _hist_freq.toString(), avgSelectivity());
     }
 }
