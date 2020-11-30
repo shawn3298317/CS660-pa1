@@ -71,7 +71,6 @@ public class JoinOptimizer {
         j = new Join(p,plan1,plan2);
 
         return j;
-
     }
 
     /**
@@ -107,14 +106,7 @@ public class JoinOptimizer {
             // You do not need to implement proper support for these for Lab 5.
             return card1 + cost1 + cost2;
         } else {
-            // HINT: You may need to use the variable "j" if you implemented
-            // a join algorithm that's more complicated than a basic
-            // nested-loops join.
-
-            //  joincost(t1 join t2) = scancost(t1) + ntups(t1) x scancost(t2) //IO cost
-            //   + ntups(t1) x ntups(t2)  //CPU cost
-
-            return cost1 + (double)card1 * cost2 + (double)card1 * card2;
+            return cost1 + cost2 + card1 * card2;
         }
     }
 
@@ -229,11 +221,43 @@ public class JoinOptimizer {
             HashMap<String, TableStats> stats,
             HashMap<String, Double> filterSelectivities, boolean explain)
             throws ParsingException {
-        //Not necessary for labs 1--3
+        PlanCache optJoin = new PlanCache();
 
-        // some code goes here
-        //Replace the following
-        return joins;
+        for(int i=1; i<=joins.size(); i++){ // 1...|j|
+            Set<Set<LogicalJoinNode>> subsets = enumerateSubsets(joins, i);
+            for(Set<LogicalJoinNode> s: subsets){
+                double minCostForS = Double.MAX_VALUE;
+                int minCardForS = 0;
+                Vector<LogicalJoinNode> bestPlanForS = new Vector<LogicalJoinNode>();
+
+                for(LogicalJoinNode t: s){
+                    CostCard costCard = computeCostAndCardOfSubplan(stats,
+                            filterSelectivities, t, s, minCostForS, optJoin);
+                    if(costCard == null){
+                        continue;
+                    }
+
+                    bestPlanForS = costCard.plan;
+                    minCardForS = costCard.card;
+                    minCostForS = costCard.cost;
+                }
+
+                if(minCostForS != Double.MAX_VALUE){
+                    optJoin.addPlan(s, minCostForS, minCardForS, bestPlanForS);
+                }
+            }
+        }
+
+        Set<LogicalJoinNode> setLogicalJoinNodes = new HashSet<LogicalJoinNode>();
+        for(LogicalJoinNode node: joins){
+            setLogicalJoinNodes.add(node);
+        }
+
+        Vector<LogicalJoinNode> ans = optJoin.getOrder(setLogicalJoinNodes);
+
+        if(explain)
+            printJoins(ans, optJoin, stats, filterSelectivities);
+        return ans;
     }
 
     // ===================== Private Methods =================================
