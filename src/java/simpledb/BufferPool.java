@@ -231,17 +231,17 @@ public class BufferPool {
         // not necessary for lab1
         // TODO: implement this...
 
-//        Iterator it = _pagePool.entrySet().iterator();
-//
-//        if (it.hasNext()) {
-//            Map.Entry kv = (Map.Entry) it.next();
-//            Page p = (Page) kv.getValue();
-//            PageId pid = (PageId) kv.getKey();
-//            if (p.isDirty()) {
-//
-//            }
-//        }
-        System.out.println("Not implemented here flushAllPages()!!!");
+        Iterator it = _pagePool.entrySet().iterator();
+
+        if (it.hasNext()) {
+            Map.Entry kv = (Map.Entry) it.next();
+            Page p = (Page) kv.getValue();
+            PageId pid = (PageId) kv.getKey();
+            if (p.isDirty() != null) {
+                p.markDirty(false, null);
+            }
+            _pagePool.remove(pid);
+        }
     }
 
     /** Remove the specific page id from the buffer pool.
@@ -255,6 +255,11 @@ public class BufferPool {
     public synchronized void discardPage(PageId pid) {
         // some code goes here
         // not necessary for lab1
+
+        _pagePool.remove(pid);
+        int node_index = _pageRecencyList.indexOf(pid); // O(N)
+        if (node_index >= 0 && node_index < _pageRecencyList.size())
+            _pageRecencyList.remove(node_index);
     }
 
     /**
