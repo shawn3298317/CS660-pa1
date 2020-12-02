@@ -206,17 +206,21 @@ public class BTreeFile implements DbFile {
 				return findLeafPage(tid, dirtypages, left.getLeftChild(), perm, f);
 			}
 
+			BTreeEntry next = null;
 			while (it.hasNext()) {
-				BTreeEntry next = it.next();
+				next = it.next();
 				Field cur_key = next.getKey();
 				if (f.compare(Op.LESS_THAN_OR_EQ, cur_key)) { // smaller or equal to, find left child
 					Debug.log("Searching left child (%s <= %s)", f.toString(), cur_key.toString());
 					return findLeafPage(tid, dirtypages, next.getLeftChild(), perm, f);
 				} else { // larger, find right child
 					Debug.log("Searching right child (%s > %s)", f.toString(), cur_key.toString());
-					return findLeafPage(tid, dirtypages, next.getRightChild(), perm, f);
+					// return findLeafPage(tid, dirtypages, next.getRightChild(), perm, f);
+					continue;
 				}
 			}
+			if (next != null)
+				return findLeafPage(tid, dirtypages, next.getRightChild(), perm, f);
 		}
 
         return null;
@@ -277,7 +281,12 @@ public class BTreeFile implements DbFile {
 		BTreeLeafPage rightLeafPage = (BTreeLeafPage) getEmptyPage(tid, dirtypages, BTreePageId.LEAF);
 		rightLeafPage.setLeftSiblingId(page.getId());
 		rightLeafPage.setRightSiblingId(page.getRightSiblingId());
+		if (page.getRightSiblingId() != null) {
+			BTreeLeafPage rightRightLeafPage = (BTreeLeafPage) getPage(tid, dirtypages, page.getRightSiblingId(), Permissions.READ_WRITE);
+			rightRightLeafPage.setLeftSiblingId(rightLeafPage.getId());
+		}
 		page.setRightSiblingId(rightLeafPage.getId());
+		// rightLeafPage.setParentId(page.getParentId()); // TODO: confirm if we need this?
 
 		// find middle key
 		Tuple mid_tup = null;
@@ -323,6 +332,8 @@ public class BTreeFile implements DbFile {
 		Field mid_key = mid_tup.getField(this.keyField);
 		BTreeEntry to_insert = new BTreeEntry(mid_key, page.getId(), rightLeafPage.getId());
 		parent.insertEntry(to_insert);
+
+		updateParentPointers(tid, dirtypages, parent);
 
 		// use the input field and middle key to decide which page to return
 		if (field.compare(Op.LESS_THAN_OR_EQ, mid_key))
@@ -443,21 +454,21 @@ public class BTreeFile implements DbFile {
 			BTreePageId parentId, Field field) throws DbException, IOException, TransactionAbortedException {
 		
 		BTreeInternalPage parent = null;
-		
+
 		// create a parent node if necessary
-		// this will be the new root of the tree
-		if(parentId.pgcateg() == BTreePageId.ROOT_PTR) { // if current page happens to be root node
-			parent = (BTreeInternalPage) getEmptyPage(tid, dirtypages, BTreePageId.INTERNAL);
+		// this will be the new parent of the leaf page
+		if(parentId.pgcateg() == BTreePageId.ROOT_PTR) { // if current leaf page happens to be root node
+
+			BTreeInternalPage newRootPage = (BTreeInternalPage) getEmptyPage(tid, dirtypages, BTreePageId.INTERNAL);
 
 			// update the root pointer
-			BTreeRootPtrPage rootPtr = (BTreeRootPtrPage) getPage(tid, dirtypages,
-					BTreeRootPtrPage.getId(tableid), Permissions.READ_WRITE);
-			BTreePageId prevRootId = rootPtr.getRootId(); //save prev id before overwriting.
-			rootPtr.setRootId(parent.getId());
+			BTreeRootPtrPage rootPtr = (BTreeRootPtrPage) getPage(tid, dirtypages, BTreeRootPtrPage.getId(tableid), Permissions.READ_WRITE);
+			//BTreeLeafPage prevRootPage = (BTreeLeafPage) getPage(tid, dirtypages, rootPtr.getRootId(), Permissions.READ_WRITE);
+			rootPtr.setRootId(newRootPage.getId());
 
 			// update the previous root to now point to this new root.
-			BTreePage prevRootPage = (BTreePage)getPage(tid, dirtypages, prevRootId, Permissions.READ_WRITE);
-			prevRootPage.setParentId(parent.getId());
+			//prevRootPage.setParentId(newRootPage.getId());
+			parent = newRootPage;
 		}
 		else { 
 			// lock the parent page

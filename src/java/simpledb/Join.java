@@ -122,14 +122,14 @@ public class Join extends Operator {
             }
 
             while (_child2.hasNext()) {
-                Debug.log("In Here2!!");
+                // Debug.log("In Here2!!");
                 Tuple t2 = _child2.next();
                 TupleDesc joined_td = getTupleDesc();
                 int numFields1 = cursor.getTupleDesc().numFields();
                 int numFields2 = t2.getTupleDesc().numFields();
 
-                Debug.log("t1:%s | t2:%s | Predicate: %s | %b", cursor.toString(), t2.toString(),
-                        _predicate.toString(), _predicate.filter(cursor, t2));
+                //Debug.log("t1:%s | t2:%s | Predicate: %s | %b", cursor.toString(), t2.toString(),
+                //         _predicate.toString(), _predicate.filter(cursor, t2));
                 if (_predicate.filter(cursor, t2)) {
 
                     Tuple newTuple = new Tuple(joined_td);
@@ -141,7 +141,7 @@ public class Join extends Operator {
                     for (int i = 0; i < numFields2; i++) {
                         newTuple.setField(i + numFields1, t2.getField(i));
                     }
-                    Debug.log("NewTuple: %s", newTuple.toString());
+                    // Debug.log("NewTuple: %s", newTuple.toString());
                     return newTuple;
                 }
             }

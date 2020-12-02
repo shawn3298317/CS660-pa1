@@ -229,19 +229,21 @@ public class BufferPool {
     public synchronized void flushAllPages() throws IOException {
         // some code goes here
         // not necessary for lab1
-        // TODO: implement this...
 
-//        Iterator it = _pagePool.entrySet().iterator();
-//
-//        if (it.hasNext()) {
-//            Map.Entry kv = (Map.Entry) it.next();
-//            Page p = (Page) kv.getValue();
-//            PageId pid = (PageId) kv.getKey();
-//            if (p.isDirty()) {
-//
-//            }
-//        }
-        System.out.println("Not implemented here flushAllPages()!!!");
+        Iterator it = _pagePool.entrySet().iterator();
+
+        if (it.hasNext()) {
+            Map.Entry kv = (Map.Entry) it.next();
+            Page p = (Page) kv.getValue();
+            PageId pid = (PageId) kv.getKey();
+            if (p.isDirty() != null) {
+                p.markDirty(false, null);
+                int tableId = pid.getTableId();
+                DbFile df = Database.getCatalog().getDatabaseFile(tableId);
+                df.writePage(p);
+            }
+            _pagePool.remove(pid);
+        }
     }
 
     /** Remove the specific page id from the buffer pool.
@@ -255,6 +257,11 @@ public class BufferPool {
     public synchronized void discardPage(PageId pid) {
         // some code goes here
         // not necessary for lab1
+
+        _pagePool.remove(pid);
+        int node_index = _pageRecencyList.indexOf(pid); // O(N)
+        if (node_index >= 0 && node_index < _pageRecencyList.size())
+            _pageRecencyList.remove(node_index);
     }
 
     /**
@@ -267,9 +274,16 @@ public class BufferPool {
 
         int tableId = pid.getTableId();
         DbFile df = Database.getCatalog().getDatabaseFile(tableId);
-        Page removedPage = _pagePool.remove(pid);
-        df.writePage(removedPage);
-        removedPage.markDirty(false, null);
+        if (_pagePool.containsKey(pid)) {
+            Page removedPage = _pagePool.remove(pid);
+            removedPage.markDirty(false, null);
+            df.writePage(removedPage);
+        }
+        else {
+            Debug.log("[ERROR] Bufferpool doesnot contain pid(%s) so cannot flush to disk", pid.toString());
+        }
+
+
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -277,6 +291,22 @@ public class BufferPool {
     public synchronized  void flushPages(TransactionId tid) throws IOException {
         // some code goes here
         // not necessary for lab1|lab2
+
+        Iterator it = _pagePool.entrySet().iterator();
+
+        if (it.hasNext()) {
+            Map.Entry kv = (Map.Entry) it.next();
+            Page p = (Page) kv.getValue();
+            PageId pid = (PageId) kv.getKey();
+            if (p.isDirty() == tid) {
+                p.markDirty(false, null);
+                int tableId = pid.getTableId();
+                DbFile df = Database.getCatalog().getDatabaseFile(tableId);
+                df.writePage(p);
+            }
+            _pagePool.remove(pid);
+        }
+
     }
 
     /**
@@ -289,6 +319,7 @@ public class BufferPool {
 
         // determine which page to evict: LRU policy
         PageId flush_pid = _pageRecencyList.removeLast();
+        Debug.log("Evicting pid: %s", flush_pid);
         // MRU policy
         // PageId flush_pid = _pageRecencyList.removeFirst();
 
