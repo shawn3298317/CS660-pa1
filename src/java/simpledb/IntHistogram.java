@@ -124,7 +124,7 @@ public class IntHistogram {
             int bucket = getBucket(v);
 //            if (_hist_freq[bucket] > 0)
 //                Debug.log("bucket: %d, w_b: %f, v = %d; freq=(%f); n_tup=%d", bucket, _wb, v, _hist_freq[bucket], _n_tuples);
-            return _hist_freq[bucket]/ceil(_wb);///_n_tuples;
+            return _hist_freq[bucket]/ceil(_wb)/_n_tuples;
         }
 
         return 1.0;
