@@ -1,6 +1,6 @@
 package simpledb;
 
-//import static com.sun.javafx.util.Utils.sum;
+// import static com.sun.javafx.util.Utils.sum;
 import static java.lang.Integer.max;
 import static java.lang.Integer.min;
 import static java.lang.Math.abs;
